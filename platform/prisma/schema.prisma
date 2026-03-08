@@ -1,0 +1,131 @@
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  name         String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  sessions     Session[]
+  roles        UserRole[]
+  groups       GroupMembership[]
+  @@unique([tenantId, email])
+  @@index([tenantId, active])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  @@index([tenantId, userId])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  permissions RolePermission[]
+  users       UserRole[]
+  @@unique([tenantId, name])
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  roles     RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  tenantId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  @@id([roleId, permissionId])
+  @@index([tenantId])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  tenantId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User @relation(fields: [userId], references: [id])
+  role       Role @relation(fields: [roleId], references: [id])
+  @@id([userId, roleId])
+  @@index([tenantId])
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members   GroupMembership[]
+  @@unique([tenantId, name])
+}
+
+model GroupMembership {
+  groupId    String
+  userId     String
+  tenantId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  group      Group @relation(fields: [groupId], references: [id])
+  user       User @relation(fields: [userId], references: [id])
+  @@id([groupId, userId])
+  @@index([tenantId])
+}
+
+model WorkflowDefinition { id String @id @default(uuid()) tenantId String name String steps WorkflowStepDefinition[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@unique([tenantId,name]) }
+model WorkflowStepDefinition { id String @id @default(uuid()) tenantId String workflowDefinitionId String name String order Int workflowDefinition WorkflowDefinition @relation(fields:[workflowDefinitionId], references:[id]) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model WorkflowExecution { id String @id @default(uuid()) tenantId String workflowDefinitionId String status String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model WorkflowStepExecution { id String @id @default(uuid()) tenantId String workflowExecutionId String stepName String status String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+
+model ApprovalRequest { id String @id @default(uuid()) tenantId String title String status String requesterId String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([tenantId,status]) }
+model ApprovalStep { id String @id @default(uuid()) tenantId String approvalRequestId String approverRole String stepOrder Int status String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model ApprovalDecision { id String @id @default(uuid()) tenantId String approvalStepId String actorId String decision String comment String? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model ApprovalHistory { id String @id @default(uuid()) tenantId String approvalRequestId String action String actorId String metadata Json createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+
+model AutomationRule { id String @id @default(uuid()) tenantId String name String trigger String action Json active Boolean @default(true) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model AutomationExecution { id String @id @default(uuid()) tenantId String ruleId String status String eventId String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model AutomationExecutionStep { id String @id @default(uuid()) tenantId String executionId String step String status String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+
+model Notification { id String @id @default(uuid()) tenantId String channel String recipient String content String status String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model NotificationDelivery { id String @id @default(uuid()) tenantId String notificationId String provider String status String attempts Int @default(0) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model AuditLog { id String @id @default(uuid()) tenantId String actorId String action String resource String metadata Json createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([tenantId,createdAt]) }
+model IntegrationEndpoint { id String @id @default(uuid()) tenantId String name String url String secret String active Boolean @default(true) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model MetricPoint { id String @id @default(uuid()) tenantId String key String value Float capturedAt DateTime @default(now()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([tenantId,key,capturedAt]) }
+model ReportSnapshot { id String @id @default(uuid()) tenantId String reportType String payload Json createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model JobRecord { id String @id @default(uuid()) tenantId String queue String jobId String status String payload Json createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([tenantId,queue,status]) }
