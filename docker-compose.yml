@@ -23,12 +23,14 @@ services:
 
   nats:
     image: nats:2
+    command: ["-js", "-m", "8222"]
     healthcheck:
-      test: ["CMD-SHELL", "pidof nats-server"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8222/varz >/dev/null 2>&1 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
-    ports: ["4222:4222"]
+      start_period: 5s
+    ports: ["4222:4222", "8222:8222"]
 
   platform-init:
     build:
@@ -124,8 +126,10 @@ services:
   nginx:
     image: nginx:1.27-alpine
     depends_on:
-      - api-gateway
-      - web
+      api-gateway:
+        condition: service_started
+      web:
+        condition: service_started
     ports: ["8080:80"]
     volumes:
       - ./platform/infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
