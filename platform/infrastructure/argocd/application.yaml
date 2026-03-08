@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: enterprise-platform
+  namespace: argocd
+spec:
+  project: enterprise-platform
+  source:
+    repoURL: https://github.com/example/like_netflix.git
+    targetRevision: HEAD
+    path: platform/infrastructure/helm/enterprise-platform
+    helm:
+      releaseName: enterprise-platform
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: enterprise-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: enterprise-platform-k8s-base
+  namespace: argocd
+spec:
+  project: enterprise-platform
+  source:
+    repoURL: https://github.com/example/like_netflix.git
+    targetRevision: HEAD
+    path: platform/infrastructure/k8s/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: enterprise-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

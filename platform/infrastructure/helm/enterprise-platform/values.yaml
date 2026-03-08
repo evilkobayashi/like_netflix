@@ -1,0 +1,87 @@
+namespace: enterprise-platform
+
+global:
+  imagePullPolicy: IfNotPresent
+  env:
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/platform
+    REDIS_URL: redis://redis:6379
+    NATS_URL: nats://nats:4222
+  secretEnv:
+    JWT_SECRET: change-me
+
+platformInit:
+  enabled: true
+  image: ghcr.io/example/enterprise-platform:latest
+
+services:
+  - name: api-gateway
+    image: ghcr.io/example/api-gateway:latest
+    port: 3000
+    replicas: 2
+  - name: identity-service
+    image: ghcr.io/example/identity-service:latest
+    port: 3001
+  - name: user-service
+    image: ghcr.io/example/user-service:latest
+    port: 3002
+  - name: authorization-service
+    image: ghcr.io/example/authorization-service:latest
+    port: 3003
+  - name: workflow-service
+    image: ghcr.io/example/workflow-service:latest
+    port: 3004
+  - name: approval-service
+    image: ghcr.io/example/approval-service:latest
+    port: 3005
+  - name: automation-service
+    image: ghcr.io/example/automation-service:latest
+    port: 3006
+  - name: notification-service
+    image: ghcr.io/example/notification-service:latest
+    port: 3007
+  - name: dashboard-service
+    image: ghcr.io/example/dashboard-service:latest
+    port: 3008
+  - name: audit-service
+    image: ghcr.io/example/audit-service:latest
+    port: 3009
+  - name: integration-service
+    image: ghcr.io/example/integration-service:latest
+    port: 3010
+  - name: worker-service
+    image: ghcr.io/example/worker-service:latest
+    port: 3011
+  - name: web
+    image: ghcr.io/example/web:latest
+    port: 5173
+  - name: nginx
+    image: nginx:1.27-alpine
+    port: 80
+
+infraServices:
+  - name: redis
+    image: redis:7
+    port: 6379
+  - name: nats
+    image: nats:2
+    port: 4222
+  - name: postgres
+    image: postgres:16
+    port: 5432
+    stateful: true
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: platform
+  - name: prometheus
+    image: prom/prometheus
+    port: 9090
+  - name: grafana
+    image: grafana/grafana
+    port: 3000
+  - name: loki
+    image: grafana/loki:2.9.3
+    port: 3100
+  - name: tempo
+    image: grafana/tempo:2.3.1
+    port: 3200

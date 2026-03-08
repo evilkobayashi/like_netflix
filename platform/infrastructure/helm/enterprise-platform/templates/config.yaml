@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: {{ .Values.namespace }}
+data:
+{{- range $k, $v := .Values.global.env }}
+  {{ $k }}: {{ $v | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: platform-secrets
+  namespace: {{ .Values.namespace }}
+type: Opaque
+stringData:
+{{- range $k, $v := .Values.global.secretEnv }}
+  {{ $k }}: {{ $v | quote }}
+{{- end }}

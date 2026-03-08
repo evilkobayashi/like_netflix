@@ -1,0 +1,346 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: platform-init
+  namespace: enterprise-platform
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: platform-init
+          image: ghcr.io/example/enterprise-platform:latest
+          command: ["sh", "-lc", "npx prisma db push --schema prisma/schema.prisma && npm run db:seed"]
+          envFrom:
+            - configMapRef: { name: platform-config }
+            - secretRef: { name: platform-secrets }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: postgres, namespace: enterprise-platform }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: POSTGRES_PASSWORD, value: postgres }
+            - { name: POSTGRES_DB, value: platform }
+          ports: [{ containerPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7
+          ports: [{ containerPort: 6379 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: nats, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: nats } }
+  template:
+    metadata: { labels: { app: nats } }
+    spec:
+      containers:
+        - name: nats
+          image: nats:2
+          ports: [{ containerPort: 4222 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: prometheus, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: prometheus } }
+  template:
+    metadata: { labels: { app: prometheus } }
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          ports: [{ containerPort: 9090 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: grafana, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: grafana } }
+  template:
+    metadata: { labels: { app: grafana } }
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana
+          ports: [{ containerPort: 3000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: loki, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: loki } }
+  template:
+    metadata: { labels: { app: loki } }
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:2.9.3
+          ports: [{ containerPort: 3100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: tempo, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: tempo } }
+  template:
+    metadata: { labels: { app: tempo } }
+    spec:
+      containers:
+        - name: tempo
+          image: grafana/tempo:2.3.1
+          ports: [{ containerPort: 3200 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: nginx, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: nginx } }
+  template:
+    metadata: { labels: { app: nginx } }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api-gateway, namespace: enterprise-platform }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: api-gateway } }
+  template:
+    metadata: { labels: { app: api-gateway } }
+    spec:
+      containers:
+        - name: api-gateway
+          image: ghcr.io/example/api-gateway:latest
+          envFrom:
+            - configMapRef: { name: platform-config }
+            - secretRef: { name: platform-secrets }
+          env: [{ name: PORT, value: "3000" }]
+          ports: [{ containerPort: 3000 }]
+          readinessProbe: { httpGet: { path: /ready, port: 3000 }, initialDelaySeconds: 10, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: 3000 }, initialDelaySeconds: 15, periodSeconds: 10 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: identity-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: identity-service } }
+  template:
+    metadata: { labels: { app: identity-service } }
+    spec:
+      containers:
+        - name: identity-service
+          image: ghcr.io/example/identity-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3001" }]
+          ports: [{ containerPort: 3001 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: user-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: user-service } }
+  template:
+    metadata: { labels: { app: user-service } }
+    spec:
+      containers:
+        - name: user-service
+          image: ghcr.io/example/user-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3002" }]
+          ports: [{ containerPort: 3002 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: authorization-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: authorization-service } }
+  template:
+    metadata: { labels: { app: authorization-service } }
+    spec:
+      containers:
+        - name: authorization-service
+          image: ghcr.io/example/authorization-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3003" }]
+          ports: [{ containerPort: 3003 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: workflow-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: workflow-service } }
+  template:
+    metadata: { labels: { app: workflow-service } }
+    spec:
+      containers:
+        - name: workflow-service
+          image: ghcr.io/example/workflow-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3004" }]
+          ports: [{ containerPort: 3004 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: approval-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: approval-service } }
+  template:
+    metadata: { labels: { app: approval-service } }
+    spec:
+      containers:
+        - name: approval-service
+          image: ghcr.io/example/approval-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3005" }]
+          ports: [{ containerPort: 3005 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: automation-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: automation-service } }
+  template:
+    metadata: { labels: { app: automation-service } }
+    spec:
+      containers:
+        - name: automation-service
+          image: ghcr.io/example/automation-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3006" }]
+          ports: [{ containerPort: 3006 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: notification-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: notification-service } }
+  template:
+    metadata: { labels: { app: notification-service } }
+    spec:
+      containers:
+        - name: notification-service
+          image: ghcr.io/example/notification-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3007" }]
+          ports: [{ containerPort: 3007 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dashboard-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: dashboard-service } }
+  template:
+    metadata: { labels: { app: dashboard-service } }
+    spec:
+      containers:
+        - name: dashboard-service
+          image: ghcr.io/example/dashboard-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3008" }]
+          ports: [{ containerPort: 3008 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: audit-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: audit-service } }
+  template:
+    metadata: { labels: { app: audit-service } }
+    spec:
+      containers:
+        - name: audit-service
+          image: ghcr.io/example/audit-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3009" }]
+          ports: [{ containerPort: 3009 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: integration-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: integration-service } }
+  template:
+    metadata: { labels: { app: integration-service } }
+    spec:
+      containers:
+        - name: integration-service
+          image: ghcr.io/example/integration-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3010" }]
+          ports: [{ containerPort: 3010 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: worker-service, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: worker-service } }
+  template:
+    metadata: { labels: { app: worker-service } }
+    spec:
+      containers:
+        - name: worker-service
+          image: ghcr.io/example/worker-service:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "3011" }]
+          ports: [{ containerPort: 3011 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: web, namespace: enterprise-platform }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/example/web:latest
+          envFrom: [{ configMapRef: { name: platform-config } }, { secretRef: { name: platform-secrets } }]
+          env: [{ name: PORT, value: "5173" }]
+          ports: [{ containerPort: 5173 }]

@@ -1,0 +1,40 @@
+{{- range $svc := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  replicas: {{ default 1 $svc.replicas }}
+  selector:
+    matchLabels: { app: {{ $svc.name }} }
+  template:
+    metadata:
+      labels: { app: {{ $svc.name }} }
+    spec:
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ $svc.image }}
+          imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
+          envFrom:
+            - configMapRef: { name: platform-config }
+            - secretRef: { name: platform-secrets }
+          env:
+            - name: PORT
+              value: {{ $svc.port | quote }}
+          ports:
+            - containerPort: {{ $svc.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  selector: { app: {{ $svc.name }} }
+  ports:
+    - name: http
+      port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+---
+{{- end }}

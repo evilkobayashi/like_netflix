@@ -1,0 +1,61 @@
+{{- range $svc := .Values.infraServices }}
+{{- if $svc.stateful }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  serviceName: {{ $svc.name }}
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ $svc.name }} }
+  template:
+    metadata:
+      labels: { app: {{ $svc.name }} }
+    spec:
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ $svc.image }}
+          ports: [{ containerPort: {{ $svc.port }} }]
+{{- if $svc.env }}
+          env:
+{{- range $k, $v := $svc.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+{{- end }}
+{{- end }}
+---
+{{- else }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ $svc.name }} }
+  template:
+    metadata:
+      labels: { app: {{ $svc.name }} }
+    spec:
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ $svc.image }}
+          ports: [{ containerPort: {{ $svc.port }} }]
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  selector: { app: {{ $svc.name }} }
+  ports:
+    - name: tcp
+      port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+---
+{{- end }}
