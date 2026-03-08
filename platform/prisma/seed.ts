@@ -112,6 +112,33 @@ async function main(): Promise<void> {
       }
     });
   }
+
+  const requester = await prisma.user.findFirstOrThrow({ where: { tenantId: tenant.id, email: 'employee@demo.local' } });
+  const existingApproval = await prisma.approvalRequest.findFirst({ where: { tenantId: tenant.id, title: 'Demo Laptop Purchase' } });
+  if (!existingApproval) {
+    await prisma.approvalRequest.create({
+      data: {
+        tenantId: tenant.id,
+        title: 'Demo Laptop Purchase',
+        status: 'pending',
+        requesterId: requester.id
+      }
+    });
+  }
+
+  const metric = await prisma.metricPoint.findFirst({ where: { tenantId: tenant.id, key: 'approval.approved.count' } });
+  if (!metric) {
+    await prisma.metricPoint.create({
+      data: {
+        tenantId: tenant.id,
+        key: 'approval.approved.count',
+        value: 5,
+        capturedAt: new Date()
+      }
+    });
+  }
+
 }
+
 
 main().finally(() => prisma.$disconnect());
