@@ -1,0 +1,12 @@
+# Service Boundaries
+- API Gateway: Edge auth, rate limiting, routing.
+- Identity: JWT + refresh token rotation.
+- User: employee and profile lifecycle.
+- Authorization: RBAC, role/permission assignment.
+- Workflow + Approval: controlled business process execution.
+- Automation: event-driven trigger rules.
+- Notification: multi-channel notifications.
+- Dashboard: metrics/KPI aggregation.
+- Audit: immutable log + compliance export.
+- Integration: webhooks/connectors.
+- Worker: background queue processors.

@@ -1,0 +1,6 @@
+# Environment
+- DATABASE_URL
+- REDIS_URL
+- NATS_URL
+- JWT_SECRET
+- PORT

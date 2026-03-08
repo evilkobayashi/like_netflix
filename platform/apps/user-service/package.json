@@ -1,0 +1,10 @@
+{
+  "name": "user-service",
+  "version": "0.1.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  }
+}
