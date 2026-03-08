@@ -99,6 +99,19 @@ async function main(): Promise<void> {
       }
     });
   }
+
+
+  const purchaseRule = await prisma.automationRule.findFirst({ where: { tenantId: tenant.id, name: 'Purchase Approval Automation' } });
+  if (!purchaseRule) {
+    await prisma.automationRule.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'Purchase Approval Automation',
+        trigger: 'approval.created',
+        action: { type: 'notify', target: 'manager' }
+      }
+    });
+  }
 }
 
 main().finally(() => prisma.$disconnect());

@@ -94,6 +94,43 @@ app.patch('/users/:id', async (request) => {
   return user;
 });
 
+
+app.post('/employees/onboard', async (request) => {
+  requirePermission(request, 'users:create');
+  const token = request.user as { tenantId: string; correlationId: string; sub: string };
+  const body = request.body as { email: string; name: string; password?: string };
+
+  const user = await prisma.user.create({
+    data: {
+      tenantId: token.tenantId,
+      email: body.email,
+      name: body.name,
+      passwordHash: await bcrypt.hash(body.password ?? 'Password123!', 10)
+    }
+  });
+
+  await publishEvent({
+    id: randomUUID(),
+    type: 'employee.created',
+    tenantId: token.tenantId,
+    correlationId: token.correlationId,
+    timestamp: new Date().toISOString(),
+    payload: { userId: user.id, email: user.email, name: user.name }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: token.tenantId,
+      actorId: token.sub,
+      action: 'employee.created',
+      resource: 'employee',
+      metadata: { userId: user.id }
+    }
+  });
+
+  return { userId: user.id, status: 'onboarding_started' };
+});
+
 app.post('/users/:id/roles', async (request) => {
   requirePermission(request, 'users:update');
   const token = request.user as { tenantId: string; sub: string };
